@@ -12,15 +12,56 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t minio-express-api:latest .
+
+      - name: Save Docker image
+        run: |
+          docker save minio-express-api:latest | gzip > minio-express-api.tar.gz
+
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: host: api.umangsailor.com
+          host: api.umangsailor.com
+          username: umangsailor
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            # Create app directory if it doesn't exist
+            mkdir -p ~/storage-api
+            cd ~/storage-api
+
+            # Stop existing containers
+            docker-compose down || true
+
+            # Remove old image if exists
+            docker rmi minio-express-api:latest || true
+
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: api.umangsailor.com
           username: umangsailor
           key: AAAAC3NzaC1lZDI1NTE5AAAAIGFjrN9tHfELIHPC3FUJlRrzPY+0KeYVkVUp3m2SPurN
+          port: 22
+          source: "minio-express-api.tar.gz,docker-compose.yml"
+          target: "~/storage-api/"
+
+      - name: Load Docker image and start services
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: api.umangsailor.com
+          username: umangsailor
+          key: AAAAC3NzaC1lZDI1NTE5AAAAIGFjrN9tHfELIHPC3FUJlRrzPY+0KeYVkVUp3m2SPurN
+          port: 22
           script: |
-            cd /home/pi/storage-api
-            git pull
-            docker compose down
-            docker build -t minio-express-api:latest .
-            docker compose up -d --build
+            cd ~/storage-api
+            docker load < minio-express-api.tar.gz
+            rm minio-express-api.tar.gz
+            docker-compose up -d
+            docker-compose ps
+            docker system prune -f
