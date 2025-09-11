@@ -3,7 +3,7 @@ import minioClient from "../config/minio";
 
 const getFileUrl = (bucket: string, filename: string) => {
   const protocol = process.env.MINIO_USE_SSL === "true" ? "https" : "http";
-  const endpoint = process.env.MINIO_ENDPOINT || "localhost:4000";
+  const endpoint = process.env.API_ENDPOINT || "localhost:4000";
   return `${protocol}://${endpoint}/storage/${bucket}/${filename}`;
 };
 
@@ -82,7 +82,8 @@ export const listFiles = async (req: Request, res: Response) => {
 
 export const getFileProxy = async (req: Request, res: Response) => {
   try {
-    const { bucket, name } = req.params;
+    const bucket = req.params.bucket;
+    const name = decodeURIComponent(req.params.name);
 
     const bucketExists = await minioClient.bucketExists(bucket);
     if (!bucketExists) {
