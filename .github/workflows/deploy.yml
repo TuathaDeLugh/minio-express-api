@@ -1,0 +1,31 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: AAAAC3NzaC1lZDI1NTE5AAAAIGFjrN9tHfELIHPC3FUJlRrzPY+0KeYVkVUp3m2SPurN
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: https://api/umangsailor.com
+          username: umangsailor
+          key: AAAAC3NzaC1lZDI1NTE5AAAAIGFjrN9tHfELIHPC3FUJlRrzPY+0KeYVkVUp3m2SPurN
+          script: |
+            cd /home/pi/storage-api
+            git pull
+            docker compose down
+            docker build -t minio-express-api-storage-api:latest .
+            docker compose up -d --build
