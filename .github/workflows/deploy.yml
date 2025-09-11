@@ -22,5 +22,5 @@ jobs:
             cd /home/pi/storage-api
             git pull
             docker compose down
-            docker build -t minio-express-api-storage-api:latest .
+            docker build -t minio-express-api:latest .
             docker compose up -d --build
