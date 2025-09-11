@@ -16,7 +16,7 @@ services:
     restart: always
 
   storage-api:
-    image: minio-express-api-storage-api:latest
+    image: minio-express-api:latest
     container_name: storage-api
     depends_on:
       - minio
