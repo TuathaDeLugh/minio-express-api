@@ -23,33 +23,38 @@ jobs:
         run: |
           docker save minio-express-api:latest | gzip > minio-express-api.tar.gz
 
-      - name: Stop and clean old containers
+      - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ssh.umangsailor.com
+          host: 103.84.198.156
           username: umangsailor
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
+            # Create app directory if it doesn't exist
             mkdir -p ~/storage-api
             cd ~/storage-api
-            docker compose down || true
+
+            # Stop existing containers
+            docker-compose down || true
+
+            # Remove old image if exists
             docker rmi minio-express-api:latest || true
 
-      - name: Copy image + compose file
+      - name: Copy files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ssh.umangsailor.com
+          host: 103.84.198.156
           username: umangsailor
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           source: "minio-express-api.tar.gz,docker-compose.yml"
           target: "~/storage-api/"
 
-      - name: Load and start containers
+      - name: Load Docker image and start services
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ssh.umangsailor.com
+          host: 103.84.198.156
           username: umangsailor
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
@@ -57,6 +62,6 @@ jobs:
             cd ~/storage-api
             docker load < minio-express-api.tar.gz
             rm minio-express-api.tar.gz
-            docker compose up -d
-            docker compose ps
+            docker-compose up -d
+            docker-compose ps
             docker system prune -f
