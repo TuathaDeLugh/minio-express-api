@@ -9,7 +9,13 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: "*" }));
+app.use(
+  cors({
+    origin: "*", // or ['https://*.umangsailor.com']
+    methods: "GET,POST,PUT,DELETE",
+    allowedHeaders: "Content-Type,Authorization",
+  })
+);
 
 app.use("/", fileRoutes);
 
