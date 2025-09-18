@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import minioClient from "../config/minio";
+import minioClient, { ensureBucketExists } from "../config/minio";
 
 const getFileUrl = (bucket: string, filename: string) => {
   const protocol = process.env.MINIO_USE_SSL === "true" ? "https" : "http";
@@ -11,6 +11,8 @@ export const uploadFiles = async (req: Request, res: Response) => {
   try {
     const files = req.files as Express.Multer.File[];
     const bucket = req.body.bucket || process.env.BUCKET_NAME || "testing";
+
+    await ensureBucketExists(bucket);
 
     if (!files || files.length === 0)
       return res.status(400).json({ error: "No files uploaded" });
@@ -40,6 +42,8 @@ export const replaceFile = async (req: Request, res: Response) => {
     const bucket = req.body.bucket || process.env.BUCKET_NAME || "testing";
     const name = req.body.name;
 
+    await ensureBucketExists(bucket);
+
     if (!file) return res.status(400).json({ error: "No file provided" });
     if (!name) return res.status(400).json({ error: "File name is required" });
 
@@ -59,6 +63,9 @@ export const listFiles = async (req: Request, res: Response) => {
   try {
     const bucket =
       req.query.bucket?.toString() || process.env.BUCKET_NAME || "testing";
+
+    await ensureBucketExists(bucket);
+
     const objects: any[] = [];
 
     const stream = minioClient.listObjectsV2(bucket, "", true);
@@ -109,6 +116,8 @@ export const deleteFiles = async (req: Request, res: Response) => {
   try {
     const bucket = req.body.bucket || process.env.BUCKET_NAME || "testing";
     const names: string[] = req.body.names;
+
+    await ensureBucketExists(bucket);
 
     if (!names || names.length === 0)
       return res.status(400).json({ error: "No files provided" });
