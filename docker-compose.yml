@@ -22,7 +22,7 @@ services:
     #   - minio
     ports:
       - "4000:4000"
-    environment:
+    # environment:
       # MINIO_ENDPOINT: storage.umangsailor.com
       # MINIO_PORT: 443
       # MINIO_ACCESS_KEY: admin
