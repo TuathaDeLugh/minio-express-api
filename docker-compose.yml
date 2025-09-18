@@ -22,9 +22,9 @@ services:
     #   - minio
     ports:
       - "4000:4000"
-    # environment:
-    #   MINIO_ENDPOINT: minio
-    #   MINIO_PORT: 9000
-    #   MINIO_ACCESS_KEY: admin
-    #   MINIO_SECRET_KEY: admin12345
+    environment:
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: admin
+      MINIO_SECRET_KEY: admin12345
     restart: always
