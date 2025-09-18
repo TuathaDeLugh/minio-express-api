@@ -28,7 +28,7 @@ export const uploadFiles = async (req: Request, res: Response) => {
 
     res.json({ message: "Files uploaded successfully", files: urls });
   } catch (err: any) {
-    console.error(err);
+    console.error("Hardcoded error in uploadFiles: ", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -49,7 +49,7 @@ export const replaceFile = async (req: Request, res: Response) => {
       url: getFileUrl(bucket, name),
     });
   } catch (err: any) {
-    console.error(err);
+    console.error("Hardcoded error in replaceFile: ", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -75,7 +75,7 @@ export const listFiles = async (req: Request, res: Response) => {
       res.status(500).json({ error: err.message })
     );
   } catch (err: any) {
-    console.error(err);
+    console.error("Hardcoded error in listFiles: ", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -100,7 +100,7 @@ export const getFileProxy = async (req: Request, res: Response) => {
     res.setHeader("Content-Disposition", `inline; filename="${name}"`);
     stream.pipe(res);
   } catch (err: any) {
-    console.error(err);
+    console.error("Hardcoded error in getFileProxy: ", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -127,7 +127,7 @@ export const deleteFiles = async (req: Request, res: Response) => {
 
     res.json({ message: "Delete operation completed", deleted, errors });
   } catch (err: any) {
-    console.error(err);
+    console.error("Hardcoded error in deleteFiles: ", err);
     res.status(500).json({ error: err.message });
   }
 };
