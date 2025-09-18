@@ -3,7 +3,7 @@ import minioClient, { ensureBucketExists } from "../config/minio";
 
 const getFileUrl = (bucket: string, filename: string) => {
   const protocol = process.env.MINIO_USE_SSL === "true" ? "https" : "http";
-  const endpoint = process.env.API_ENDPOINT || "localhost:4000";
+  const endpoint = process.env.API_ENDPOINT || "bucket.umangsailor.com";
   return `${protocol}://${endpoint}/storage/${bucket}/${filename}`;
 };
 
