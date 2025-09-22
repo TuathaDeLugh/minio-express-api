@@ -25,6 +25,9 @@ RUN npm ci --only=production
 # Copy build artifacts
 COPY --from=builder /usr/src/app/dist ./dist
 
+# Copy environment file
+COPY --from=builder /usr/src/app/.env ./.env
+
 # Expose app port
 EXPOSE 4000
 

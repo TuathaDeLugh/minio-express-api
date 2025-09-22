@@ -1,30 +1,17 @@
 version: "3.8"
 
 services:
-  # minio:
-  #   image: quay.io/minio/minio:latest
-  #   container_name: minio
-  #   ports:
-  #     - "9000:9000"
-  #     - "9090:9090"
-  #   environment:
-  #     MINIO_ROOT_USER: admin
-  #     MINIO_ROOT_PASSWORD: admin12345
-  #   volumes:
-  #     - ~/minio-data:/data
-  #   command: server /data --console-address ":9090"
-  #   restart: always
-
   storage-api:
     build: .
     container_name: storage-api
-    # depends_on:
-    #   - minio
     ports:
       - "4000:4000"
-    # environment:
-      # MINIO_ENDPOINT: storage.umangsailor.com
-      # MINIO_PORT: 443
-      # MINIO_ACCESS_KEY: admin
-      # MINIO_SECRET_KEY: admin12345
+    environment:
+      MINIO_ENDPOINT: storage.umangsailor.com
+      MINIO_PORT: 443
+      MINIO_USE_SSL: "true"
+      MINIO_ACCESS_KEY: admin
+      MINIO_SECRET_KEY: admin12345
+      BUCKET_NAME: testing
+      PORT: 4000
     restart: always
