@@ -88,29 +88,24 @@ export const listFiles = async (req: Request, res: Response) => {
 };
 
 export const getFileProxy = async (req: Request, res: Response) => {
+  const bucket = req.params.bucket;
+  const name = decodeURIComponent(req.params.name);
+
   try {
-    const bucket = req.params.bucket;
-    const name = decodeURIComponent(req.params.name);
-
-    const bucketExists = await minioClient.bucketExists(bucket);
-    if (!bucketExists) {
-      return res.status(404).json({ error: "Bucket not found" });
-    }
-
-    try {
-      await minioClient.statObject(bucket, name);
-    } catch {
-      return res.status(404).json({ error: "File not found" });
-    }
-
     const stream = await minioClient.getObject(bucket, name);
     res.setHeader("Content-Disposition", `inline; filename="${name}"`);
     stream.pipe(res);
+
+    stream.on("error", (err) => {
+      console.error("Stream error:", err);
+      res.status(404).json({ error: "File not found" });
+    });
   } catch (err: any) {
     console.error("Hardcoded error in getFileProxy: ", err);
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 export const deleteFiles = async (req: Request, res: Response) => {
   try {
