@@ -4,6 +4,7 @@ import fileRoutes from "./routes/fileRoutes";
 import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
+import basicAuth from "express-basic-auth";
 
 dotenv.config();
 
@@ -19,7 +20,15 @@ app.use(
 
 app.use("/", fileRoutes);
 
-app.use("/api", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use(
+  "/api",
+  basicAuth({
+    users: { [process.env.SWAGGER_USER || "admin"]: process.env.SWAGGER_PASS || "password" },
+    challenge: true,
+  }),
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec)
+);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

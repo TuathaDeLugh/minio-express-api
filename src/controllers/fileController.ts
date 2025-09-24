@@ -11,6 +11,7 @@ export const uploadFiles = async (req: Request, res: Response) => {
   try {
     const files = req.files as Express.Multer.File[];
     const bucket = req.body.bucket || process.env.BUCKET_NAME || "testing";
+    const folder = req.body.folder || "";
 
     await ensureBucketExists(bucket);
 
@@ -19,13 +20,10 @@ export const uploadFiles = async (req: Request, res: Response) => {
 
     const urls: string[] = [];
     for (const file of files) {
-      await minioClient.putObject(
-        bucket,
-        file.originalname,
-        file.buffer,
-        file.size
-      );
-      urls.push(getFileUrl(bucket, file.originalname));
+      const objectName = folder ? `${folder}/${file.originalname}` : file.originalname;
+
+      await minioClient.putObject(bucket, objectName, file.buffer, file.size);
+      urls.push(getFileUrl(bucket, objectName));
     }
 
     res.json({ message: "Files uploaded successfully", files: urls });
@@ -35,11 +33,11 @@ export const uploadFiles = async (req: Request, res: Response) => {
   }
 };
 
-// Replace single file
 export const replaceFile = async (req: Request, res: Response) => {
   try {
     const file = req.file as Express.Multer.File;
     const bucket = req.body.bucket || process.env.BUCKET_NAME || "testing";
+    const folder = req.body.folder || "";
     const name = req.body.name;
 
     await ensureBucketExists(bucket);
@@ -47,10 +45,12 @@ export const replaceFile = async (req: Request, res: Response) => {
     if (!file) return res.status(400).json({ error: "No file provided" });
     if (!name) return res.status(400).json({ error: "File name is required" });
 
-    await minioClient.putObject(bucket, name, file.buffer, file.size);
+    const objectName = folder ? `${folder}/${name}` : name;
+
+    await minioClient.putObject(bucket, objectName, file.buffer, file.size);
     res.json({
       message: "File replaced successfully",
-      url: getFileUrl(bucket, name),
+      url: getFileUrl(bucket, objectName),
     });
   } catch (err: any) {
     console.error("Hardcoded error in replaceFile: ", err);
@@ -58,17 +58,17 @@ export const replaceFile = async (req: Request, res: Response) => {
   }
 };
 
-// List files
+// List files (supports folder filtering)
 export const listFiles = async (req: Request, res: Response) => {
   try {
-    const bucket =
-      req.query.bucket?.toString() || process.env.BUCKET_NAME || "testing";
+    const bucket = req.query.bucket?.toString() || process.env.BUCKET_NAME || "testing";
+    const folder = req.query.folder?.toString() || "";
 
     await ensureBucketExists(bucket);
 
     const objects: any[] = [];
+    const stream = minioClient.listObjectsV2(bucket, folder, true);
 
-    const stream = minioClient.listObjectsV2(bucket, "", true);
     stream.on("data", (obj: any) => {
       objects.push({
         name: obj.name,
@@ -77,10 +77,9 @@ export const listFiles = async (req: Request, res: Response) => {
         lastModified: obj.lastModified,
       });
     });
+
     stream.on("end", () => res.json({ count: objects.length, files: objects }));
-    stream.on("error", (err: Error) =>
-      res.status(500).json({ error: err.message })
-    );
+    stream.on("error", (err: Error) => res.status(500).json({ error: err.message }));
   } catch (err: any) {
     console.error("Hardcoded error in listFiles: ", err);
     res.status(500).json({ error: err.message });
@@ -106,10 +105,10 @@ export const getFileProxy = async (req: Request, res: Response) => {
   }
 };
 
-
 export const deleteFiles = async (req: Request, res: Response) => {
   try {
     const bucket = req.body.bucket || process.env.BUCKET_NAME || "testing";
+    const folder = req.body.folder || "";
     const names: string[] = req.body.names;
 
     await ensureBucketExists(bucket);
@@ -121,11 +120,13 @@ export const deleteFiles = async (req: Request, res: Response) => {
     const errors: { name: string; error: string }[] = [];
 
     for (const name of names) {
+      const objectName = folder ? `${folder}/${name}` : name;
+
       try {
-        await minioClient.removeObject(bucket, name);
-        deleted.push(name);
+        await minioClient.removeObject(bucket, objectName);
+        deleted.push(objectName);
       } catch (err: any) {
-        errors.push({ name, error: err.message });
+        errors.push({ name: objectName, error: err.message });
       }
     }
 
