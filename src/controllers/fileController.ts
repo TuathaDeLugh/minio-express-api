@@ -2,7 +2,11 @@ import { Request, Response } from "express";
 import minioClient, { ensureBucketExists } from "../config/minio";
 
 const getFileUrl = (bucket: string, filename: string) => {
-  const protocol = process.env.MINIO_USE_SSL === "true" ? "https" : "http";
+  const protocol =
+    process.env.API_ENDPOINT?.includes("localhost:") ||
+    process.env.API_ENDPOINT?.includes("192.168.1.")
+      ? "http"
+      : "https";
   const endpoint = process.env.API_ENDPOINT || "bucket.umangsailor.com";
   return `${protocol}://${endpoint}/storage/${bucket}/${filename}`;
 };
@@ -12,21 +16,70 @@ export const uploadFiles = async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
     const bucket = req.body.bucket || process.env.BUCKET_NAME || "testing";
     const folder = req.body.folder || "";
+    const randomName = req.body.randomName !== "false"; // Default to true if not explicitly set to "false"
 
     await ensureBucketExists(bucket);
 
     if (!files || files.length === 0)
       return res.status(400).json({ error: "No files uploaded" });
 
-    const urls: string[] = [];
-    for (const file of files) {
-      const objectName = folder ? `${folder}/${file.originalname}` : file.originalname;
+    // File upload limit
+    const MAX_FILES = 20;
+    const totalFiles = files.length;
+    const filesToUpload = files.slice(0, MAX_FILES);
+    const discardedCount = totalFiles - MAX_FILES;
+
+    const uploadedFiles: Array<{
+      originalName: string;
+      name: string;
+      url: string;
+      size: number;
+      time: string;
+    }> = [];
+
+    for (const file of filesToUpload) {
+      const originalName = file.originalname;
+      const uploadTime = new Date().toISOString();
+      
+      // Generate filename based on randomName config
+      let filename: string;
+      if (randomName) {
+        const timestamp = Date.now();
+        const ext = originalName.substring(originalName.lastIndexOf('.'));
+        const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
+        filename = `${timestamp}_${nameWithoutExt}${ext}`;
+      } else {
+        filename = originalName;
+      }
+
+      const objectName = folder ? `${folder}/${filename}` : filename;
 
       await minioClient.putObject(bucket, objectName, file.buffer, file.size);
-      urls.push(getFileUrl(bucket, objectName));
+      
+      uploadedFiles.push({
+        originalName,
+        name: filename,
+        url: getFileUrl(bucket, objectName),
+        size: file.size,
+        time: uploadTime,
+      });
     }
 
-    res.json({ message: "Files uploaded successfully", files: urls });
+    const response: any = {
+      message: discardedCount > 0 
+        ? `Only first ${MAX_FILES} media uploaded due to max ${MAX_FILES} limit. ${discardedCount} file(s) discarded.`
+        : "Files uploaded successfully",
+      files: uploadedFiles,
+    };
+
+    if (discardedCount > 0) {
+      response.warning = `${discardedCount} file(s) exceeded the limit and were not uploaded`;
+      response.totalReceived = totalFiles;
+      response.uploaded = MAX_FILES;
+      response.discarded = discardedCount;
+    }
+
+    res.json(response);
   } catch (err: any) {
     console.error("Hardcoded error in uploadFiles: ", err);
     res.status(500).json({ error: err.message });
@@ -61,7 +114,8 @@ export const replaceFile = async (req: Request, res: Response) => {
 // List files (supports folder filtering)
 export const listFiles = async (req: Request, res: Response) => {
   try {
-    const bucket = req.query.bucket?.toString() || process.env.BUCKET_NAME || "testing";
+    const bucket =
+      req.query.bucket?.toString() || process.env.BUCKET_NAME || "testing";
     const folder = req.query.folder?.toString() || "";
 
     await ensureBucketExists(bucket);
@@ -74,12 +128,14 @@ export const listFiles = async (req: Request, res: Response) => {
         name: obj.name,
         url: getFileUrl(bucket, obj.name),
         size: obj.size,
-        lastModified: obj.lastModified,
+        time: obj.lastModified,
       });
     });
 
     stream.on("end", () => res.json({ count: objects.length, files: objects }));
-    stream.on("error", (err: Error) => res.status(500).json({ error: err.message }));
+    stream.on("error", (err: Error) =>
+      res.status(500).json({ error: err.message }),
+    );
   } catch (err: any) {
     console.error("Hardcoded error in listFiles: ", err);
     res.status(500).json({ error: err.message });
