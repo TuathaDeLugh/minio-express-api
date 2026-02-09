@@ -1,12 +1,19 @@
 import express from "express";
-import upload from "../middleware/upload";
+import upload from "../middleware/upload.middleware";
+import { enforceFileLimit } from "../middleware/validation.middleware";
+import {
+  validateUploadRequest,
+  validateReplaceRequest,
+  validateDeleteRequest,
+} from "../validators/file.validator";
 import {
   uploadFiles,
   replaceFile,
   listFiles,
   deleteFiles,
   getFileProxy,
-} from "../controllers/fileController";
+} from "../controllers/file.controller";
+import { MULTER_MAX_FILES } from "../constants";
 
 const router = express.Router();
 
@@ -22,7 +29,8 @@ const router = express.Router();
  * /upload:
  *   post:
  *     tags: [Files]
- *     summary: Upload multiple files
+ *     summary: Upload multiple files (max 20 by default)
+ *     description: Upload multiple files to MinIO storage. The maximum number of files is configurable via MAX_UPLOAD_FILES environment variable.
  *     requestBody:
  *       required: true
  *       content:
@@ -41,8 +49,32 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Files uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 files:
+ *                   type: array
+ *                 warning:
+ *                   type: string
+ *                   description: Warning message if files were discarded
+ *                 totalReceived:
+ *                   type: number
+ *                 uploaded:
+ *                   type: number
+ *                 discarded:
+ *                   type: number
  */
-router.post("/upload", upload.array("files", 20), uploadFiles);
+router.post(
+  "/upload",
+  upload.array("files", MULTER_MAX_FILES), // Accept up to 100 files
+  enforceFileLimit, // But only process MAX_UPLOAD_FILES (20 by default)
+  validateUploadRequest,
+  uploadFiles
+);
 
 /**
  * @swagger
@@ -70,7 +102,7 @@ router.post("/upload", upload.array("files", 20), uploadFiles);
  *       200:
  *         description: File replaced successfully
  */
-router.put("/upload", upload.single("file"), replaceFile);
+router.put("/upload", upload.single("file"), validateReplaceRequest, replaceFile);
 
 /**
  * @swagger
@@ -147,6 +179,6 @@ router.get("/storage/:bucket/:name(*)", getFileProxy);
  *       200:
  *         description: Files deleted successfully
  */
-router.delete("/files", deleteFiles);
+router.delete("/files", validateDeleteRequest, deleteFiles);
 
 export default router;

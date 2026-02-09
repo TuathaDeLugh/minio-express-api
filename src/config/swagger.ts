@@ -1,5 +1,8 @@
 import swaggerJsdoc from "swagger-jsdoc";
 
+const isDevelopment = process.env.NODE_ENV !== "production";
+const routePath = isDevelopment ? "./src/routes/*.ts" : "./dist/routes/*.js";
+
 const options: swaggerJsdoc.Options = {
   definition: {
     openapi: "3.0.0",
@@ -10,7 +13,7 @@ const options: swaggerJsdoc.Options = {
         "API for uploading, listing, previewing, replacing, and deleting files using MinIO",
     },
   },
-  apis: ["./src/routes/*.ts"],
+  apis: [routePath],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
