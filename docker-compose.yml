@@ -7,11 +7,45 @@ services:
     ports:
       - "4000:4000"
     environment:
-      MINIO_ENDPOINT: storage.umangsailor.com
-      MINIO_PORT: 443
-      MINIO_USE_SSL: "true"
-      MINIO_ACCESS_KEY: admin
-      MINIO_SECRET_KEY: admin12345
-      BUCKET_NAME: testing
-      PORT: 4000
-    restart: always
+      # MinIO Configuration
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-storage.umangsailor.com}
+      MINIO_PORT: ${MINIO_PORT:-443}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-true}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-admin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-admin12345}
+
+      # Application Configuration
+      NODE_ENV: production
+      PORT: ${PORT:-4000}
+      BUCKET_NAME: ${BUCKET_NAME:-testing}
+      API_ENDPOINT: ${API_ENDPOINT:-bucket.umangsailor.com}
+
+      # File Upload Configuration
+      MAX_UPLOAD_FILES: ${MAX_UPLOAD_FILES:-20}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-1024}
+
+      # Swagger Configuration
+      SWAGGER_USER: ${SWAGGER_USER:-admin}
+      SWAGGER_PASS: ${SWAGGER_PASS:-password}
+
+    restart: unless-stopped
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:4000/files', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+    networks:
+      - storage-network
+
+networks:
+  storage-network:
+    driver: bridge
