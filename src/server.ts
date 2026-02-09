@@ -3,6 +3,7 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import fileRoutes from "./routes/file.routes";
+import healthRoutes from "./routes/health.routes";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import basicAuth from "express-basic-auth";
@@ -18,6 +19,7 @@ app.use(
   })
 );
 
+app.use("/", healthRoutes);
 app.use("/", fileRoutes);
 
 app.use(
