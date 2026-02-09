@@ -16,30 +16,27 @@ This guide covers deploying the MinIO Express API using Docker and Docker Compos
 
 ## Quick Start
 
-### 1. Clone and Configure
+### 1. Configure Environment
 
 ```bash
 # Navigate to project directory
 cd minio-express-api
 
-# Copy environment template
-cp .env.example .env
-
-# Edit .env with your configuration
+# Edit .env with your MinIO configuration
 nano .env
 ```
 
 ### 2. Build and Run
 
 ```bash
-# Build and start the container
-docker-compose up -d
+# Build and start the container (use sudo if needed)
+docker compose up -d --build
 
 # View logs
-docker-compose logs -f storage-api
+docker compose logs -f storage-api
 
 # Check health status
-docker-compose ps
+docker compose ps
 ```
 
 ### 3. Access the API
