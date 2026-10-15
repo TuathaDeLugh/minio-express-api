@@ -46,7 +46,7 @@ export class SignedUrlService {
     const expiresIn = dto.expiresIn || 3600;
     const originalName = dto.filename;
 
-    await this.minioService.ensureBucketExists(bucket);
+    await this.minioService.validateBucketExists(bucket);
 
     let filename: string;
     if (randomName) {
@@ -106,7 +106,7 @@ export class SignedUrlService {
     const objectName = this.resolveObjectName(dto.name, dto.folder);
     const expiresIn = dto.expiresIn || 3600;
 
-    await this.minioService.ensureBucketExists(bucket);
+    await this.minioService.validateBucketExists(bucket);
     const minioClient = this.minioService.getClient();
 
     try {
@@ -142,7 +142,7 @@ export class SignedUrlService {
     const bucket = dto.bucket || DEFAULT_BUCKET;
     const objectName = this.resolveObjectName(dto.name, dto.folder);
 
-    await this.minioService.ensureBucketExists(bucket);
+    await this.minioService.validateBucketExists(bucket);
     const minioClient = this.minioService.getClient();
 
     try {
@@ -174,7 +174,7 @@ export class SignedUrlService {
     const bucket = dto.bucket || DEFAULT_BUCKET;
     const objectName = this.resolveObjectName(dto.name, dto.folder);
 
-    await this.minioService.ensureBucketExists(bucket);
+    await this.minioService.validateBucketExists(bucket);
     const minioClient = this.minioService.getClient();
 
     try {

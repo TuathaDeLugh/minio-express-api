@@ -32,7 +32,7 @@ export class FilesService {
     const folder = uploadFilesDto.folder || "";
     const randomName = uploadFilesDto.randomName !== "false";
 
-    await this.minioService.ensureBucketExists(bucket);
+    await this.minioService.validateBucketExists(bucket);
 
     const uploadedFiles: Array<{
       originalName: string;
@@ -104,7 +104,7 @@ export class FilesService {
     const folder = uploadSingleFileDto.folder || "";
     const randomName = uploadSingleFileDto.randomName !== "false";
 
-    await this.minioService.ensureBucketExists(bucket);
+    await this.minioService.validateBucketExists(bucket);
 
     const originalName = file.originalname;
     const uploadTime = new Date().toISOString();
@@ -151,7 +151,7 @@ export class FilesService {
     const folder = replaceFileDto.folder || "";
     const name = replaceFileDto.name;
 
-    await this.minioService.ensureBucketExists(bucket);
+    await this.minioService.validateBucketExists(bucket);
 
     const objectName = folder ? `${folder}/${name}` : name;
     const minioClient = this.minioService.getClient();
@@ -175,7 +175,7 @@ export class FilesService {
     const bucket = bucketName || DEFAULT_BUCKET;
     const folder = folderName || "";
 
-    await this.minioService.ensureBucketExists(bucket);
+    await this.minioService.validateBucketExists(bucket);
 
     const minioClient = this.minioService.getClient();
     const objects: any[] = [];
@@ -215,6 +215,7 @@ export class FilesService {
    * Retrieve file stream proxy
    */
   async getFileProxy(bucket: string, name: string) {
+    await this.minioService.validateBucketExists(bucket);
     const minioClient = this.minioService.getClient();
 
     try {
@@ -234,7 +235,7 @@ export class FilesService {
     const folder = deleteFilesDto.folder || "";
     const names = deleteFilesDto.names;
 
-    await this.minioService.ensureBucketExists(bucket);
+    await this.minioService.validateBucketExists(bucket);
 
     const deleted: string[] = [];
     const errors: Array<{ name: string; error: string }> = [];

@@ -186,14 +186,40 @@ export class FilesController {
     @Res() res: Response
   ) {
     const decodedName = decodeURIComponent(name);
-    const stream = await this.filesService.getFileProxy(bucket, decodedName);
+    try {
+      const stream = await this.filesService.getFileProxy(bucket, decodedName);
 
-    res.setHeader("Content-Disposition", `inline; filename="${decodedName}"`);
-    stream.pipe(res);
+      res.setHeader("Content-Disposition", `inline; filename="${decodedName}"`);
+      stream.pipe(res);
 
-    stream.on("error", () => {
-      res.status(HttpStatus.NOT_FOUND).json({ error: "File not found" });
-    });
+      stream.on("error", (err: any) => {
+        if (!res.headersSent) {
+          if (
+            err?.code === "NoSuchBucket" ||
+            err?.code === "AccessDenied" ||
+            err?.message?.includes("Invalid bucket name")
+          ) {
+            res.status(HttpStatus.NOT_FOUND).json({
+              statusCode: HttpStatus.NOT_FOUND,
+              message: "Requested bucket is not existed or you don't have access",
+              error: "Not Found",
+            });
+          } else {
+            res.status(HttpStatus.NOT_FOUND).json({
+              statusCode: HttpStatus.NOT_FOUND,
+              message: "File not found",
+              error: "Not Found",
+            });
+          }
+        }
+      });
+    } catch (err: any) {
+      if (!res.headersSent) {
+        const status = err.getStatus ? err.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+        const response = err.getResponse ? err.getResponse() : { message: err.message };
+        res.status(status).json(response);
+      }
+    }
   }
 
   @Delete("files")
