@@ -28,6 +28,7 @@ import {
 import { Request, Response } from "express";
 import { FilesService } from "./files.service";
 import { UploadFilesDto } from "./dto/upload-files.dto";
+import { UploadSingleFileDto } from "./dto/upload-single-file.dto";
 import { ReplaceFileDto } from "./dto/replace-file.dto";
 import { DeleteFilesDto } from "./dto/delete-files.dto";
 import { FileLimitInterceptor } from "../common/interceptors/file-limit.interceptor";
@@ -69,6 +70,33 @@ export class FilesController {
 
     const metadata = (req as any).fileUploadMetadata;
     return this.filesService.uploadFiles(files, uploadFilesDto, metadata);
+  }
+
+  @Post("upload/single")
+  @UseInterceptors(FileInterceptor("file"))
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({
+    summary: "Upload a single file",
+    description: "Upload a single file directly to MinIO storage.",
+  })
+  @ApiBody({ type: UploadSingleFileDto })
+  @ApiResponse({
+    status: 200,
+    description: "File uploaded successfully",
+  })
+  @ApiResponse({
+    status: 400,
+    description: "No file uploaded or request validation failed",
+  })
+  async uploadSingleFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() uploadSingleFileDto: UploadSingleFileDto
+  ) {
+    if (!file) {
+      throw new BadRequestException("No file uploaded");
+    }
+
+    return this.filesService.uploadSingleFile(file, uploadSingleFileDto);
   }
 
   @Put("upload")

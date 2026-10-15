@@ -2,6 +2,7 @@ import { Injectable, InternalServerErrorException, Logger, NotFoundException } f
 import { MinioService } from "../minio/minio.service";
 import { DEFAULT_BUCKET, API_ENDPOINT, getProtocol } from "../common/constants";
 import { UploadFilesDto } from "./dto/upload-files.dto";
+import { UploadSingleFileDto } from "./dto/upload-single-file.dto";
 import { ReplaceFileDto } from "./dto/replace-file.dto";
 import { DeleteFilesDto } from "./dto/delete-files.dto";
 
@@ -90,6 +91,56 @@ export class FilesService {
     }
 
     return response;
+  }
+
+  /**
+   * Upload a single file
+   */
+  async uploadSingleFile(
+    file: Express.Multer.File,
+    uploadSingleFileDto: UploadSingleFileDto
+  ) {
+    const bucket = uploadSingleFileDto.bucket || DEFAULT_BUCKET;
+    const folder = uploadSingleFileDto.folder || "";
+    const randomName = uploadSingleFileDto.randomName !== "false";
+
+    await this.minioService.ensureBucketExists(bucket);
+
+    const originalName = file.originalname;
+    const uploadTime = new Date().toISOString();
+
+    let filename: string;
+    if (randomName) {
+      const timestamp = Date.now();
+      const ext = originalName.substring(originalName.lastIndexOf("."));
+      const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf("."));
+      filename = `${timestamp}_${nameWithoutExt}${ext}`;
+    } else {
+      filename = originalName;
+    }
+
+    const objectName = folder ? `${folder}/${filename}` : filename;
+    const minioClient = this.minioService.getClient();
+
+    try {
+      await minioClient.putObject(bucket, objectName, file.buffer, file.size);
+    } catch (err: any) {
+      this.logger.error(`Error uploading single file ${originalName} to ${bucket}/${objectName}:`, err);
+      throw new InternalServerErrorException(`Failed to upload ${originalName}: ${err.message}`);
+    }
+
+    return {
+      message: "File uploaded successfully",
+      file: {
+        originalName,
+        name: filename,
+        bucket,
+        path: objectName,
+        url: this.getFileUrl(bucket, objectName),
+        size: file.size,
+        time: uploadTime,
+      },
+    };
   }
 
   /**

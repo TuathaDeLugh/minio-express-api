@@ -4,6 +4,7 @@ import minioConfig from "./config/minio.config";
 import { MinioModule } from "./minio/minio.module";
 import { HealthModule } from "./health/health.module";
 import { FilesModule } from "./files/files.module";
+import { SignedUrlModule } from "./signed-url/signed-url.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -15,6 +16,7 @@ import { AppController } from "./app.controller";
     MinioModule,
     HealthModule,
     FilesModule,
+    SignedUrlModule,
   ],
   controllers: [AppController],
 })

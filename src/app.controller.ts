@@ -20,6 +20,9 @@ export class AppController {
       features: [
         "Multi-stage optimized Docker builds with Alpine Linux",
         "Configurable file limit, file size, and bucket settings via environment variables",
+        "Direct client-to-MinIO uploads via Presigned PUT URLs (zero-load on backend)",
+        "Secure Presigned download links with configurable expiration",
+        "Single-file and multi-file multipart uploads with validation",
         "Security-first execution using a non-root system user",
         "Built-in endpoint health indicators (MinIO client status check)",
         "Fully-typed NestJS structure with built-in class validations",
@@ -61,6 +64,149 @@ export class AppController {
           },
           curl: `curl -X POST http://localhost:4000/upload \\\n  -F "files=@/path/to/file1.png" \\\n  -F "bucket=testing" \\\n  -F "folder=images" \\\n  -F "randomName=true"`,
           javascript: `const formData = new FormData();\nformData.append('files', fileInput.files[0]);\nformData.append('bucket', 'testing');\nformData.append('folder', 'images');\n\nfetch('http://localhost:4000/upload', {\n  method: 'POST',\n  body: formData\n})\n.then(res => res.json())\n.then(data => console.log(data));`
+        },
+        {
+          path: "/upload/single",
+          method: "POST",
+          summary: "Upload Single Media File",
+          description: "Uploads a single media file directly to a specified MinIO bucket via standard multipart/form-data.",
+          headers: {
+            "Content-Type": "multipart/form-data"
+          },
+          bodyParams: [
+            { name: "file", type: "file (binary)", required: true, description: "The single file to upload." },
+            { name: "bucket", type: "string", required: false, description: "Override target bucket. Fallback is BUCKET_NAME env." },
+            { name: "folder", type: "string", required: false, description: "Subfolder path prefix inside the bucket." },
+            { name: "randomName", type: "enum ('true' | 'false')", required: false, default: "true", description: "Generate a randomized timestamp filename." }
+          ],
+          response: {
+            status: 200,
+            description: "File uploaded successfully.",
+            example: {
+              message: "File uploaded successfully",
+              file: {
+                originalName: "avatar.png",
+                name: "1740000000_avatar.png",
+                bucket: "testing",
+                path: "avatars/1740000000_avatar.png",
+                url: "http://localhost:4000/storage/testing/avatars/1740000000_avatar.png",
+                size: 204800,
+                time: "2026-09-21T10:15:00.000Z"
+              }
+            }
+          },
+          curl: `curl -X POST http://localhost:4000/upload/single \\\n  -F "file=@/path/to/avatar.png" \\\n  -F "bucket=testing" \\\n  -F "folder=avatars" \\\n  -F "randomName=true"`,
+          javascript: `const formData = new FormData();\nformData.append('file', fileInput.files[0]);\nformData.append('bucket', 'testing');\nformData.append('folder', 'avatars');\n\nfetch('http://localhost:4000/upload/single', {\n  method: 'POST',\n  body: formData\n})\n.then(res => res.json())\n.then(data => console.log(data));`
+        },
+        {
+          path: "/signed-url/upload",
+          method: "POST",
+          summary: "Generate Presigned Upload URL",
+          description: "Generates a presigned PUT URL allowing clients to upload a single file directly to MinIO storage without passing through the backend API.",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          bodyParams: [
+            { name: "filename", type: "string", required: true, description: "Original or target filename (e.g., 'photo.jpg')." },
+            { name: "bucket", type: "string", required: false, description: "Target bucket name." },
+            { name: "folder", type: "string", required: false, description: "Subfolder prefix path." },
+            { name: "randomName", type: "enum ('true' | 'false')", required: false, default: "true", description: "Generate timestamp prefix for unique filename." },
+            { name: "expiresIn", type: "number", required: false, default: "3600", description: "Expiry duration of the upload URL in seconds (max 7 days)." },
+            { name: "contentType", type: "string", required: false, description: "Expected MIME type of the file (e.g., 'image/jpeg')." }
+          ],
+          response: {
+            status: 200,
+            description: "Presigned upload URL generated successfully.",
+            example: {
+              success: true,
+              message: "Presigned upload URL generated successfully",
+              uploadUrl: "http://localhost:9000/testing/uploads/1740000000_photo.jpg?X-Amz-Algorithm=...",
+              fileUrl: "http://localhost:4000/storage/testing/uploads/1740000000_photo.jpg",
+              bucket: "testing",
+              folder: "uploads",
+              name: "1740000000_photo.jpg",
+              path: "uploads/1740000000_photo.jpg",
+              expiresIn: 3600,
+              method: "PUT"
+            }
+          },
+          curl: `curl -X POST http://localhost:4000/signed-url/upload \\\n  -H "Content-Type: application/json" \\\n  -d '{"filename": "photo.jpg", "bucket": "testing", "folder": "uploads"}'`,
+          javascript: `// Step 1: Request signed upload URL\nconst { uploadUrl, fileUrl } = await fetch('http://localhost:4000/signed-url/upload', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ filename: file.name, folder: 'uploads' })\n}).then(r => r.json());\n\n// Step 2: Upload file directly to MinIO using the presigned URL\nawait fetch(uploadUrl, {\n  method: 'PUT',\n  body: file,\n  headers: { 'Content-Type': file.type }\n});\nconsole.log('File uploaded to:', fileUrl);`
+        },
+        {
+          path: "/signed-url/download",
+          method: "GET",
+          summary: "Generate Presigned Download URL",
+          description: "Generates a temporary signed GET URL to securely access or download private media from MinIO.",
+          queryParams: [
+            { name: "name", type: "string", required: true, description: "Full object name or path in bucket." },
+            { name: "bucket", type: "string", required: false, description: "Bucket name." },
+            { name: "folder", type: "string", required: false, description: "Optional folder prefix if not included in name." },
+            { name: "expiresIn", type: "number", required: false, default: "3600", description: "Validity duration in seconds." }
+          ],
+          response: {
+            status: 200,
+            description: "Presigned download URL generated successfully.",
+            example: {
+              success: true,
+              downloadUrl: "http://localhost:9000/testing/uploads/1740000000_photo.jpg?X-Amz-Algorithm=...",
+              bucket: "testing",
+              name: "uploads/1740000000_photo.jpg",
+              expiresIn: 3600
+            }
+          },
+          curl: `curl "http://localhost:4000/signed-url/download?name=uploads/1740000000_photo.jpg&bucket=testing"`,
+          javascript: `fetch('http://localhost:4000/signed-url/download?name=uploads/1740000000_photo.jpg')\n  .then(res => res.json())\n  .then(data => window.open(data.downloadUrl));`
+        },
+        {
+          path: "/signed-url/verify",
+          method: "GET",
+          summary: "Verify & Inspect Uploaded Media",
+          description: "Checks whether a media file exists in MinIO after being uploaded via signed URL, returning its size, contentType, ETag, and public URL.",
+          queryParams: [
+            { name: "name", type: "string", required: true, description: "Object name or path in bucket." },
+            { name: "bucket", type: "string", required: false, description: "Bucket name." },
+            { name: "folder", type: "string", required: false, description: "Optional folder prefix." }
+          ],
+          response: {
+            status: 200,
+            description: "Media verified successfully.",
+            example: {
+              success: true,
+              exists: true,
+              bucket: "testing",
+              name: "uploads/1740000000_photo.jpg",
+              size: 204800,
+              lastModified: "2026-09-21T10:15:00.000Z",
+              etag: "b10a8db164e0754105b7a99be72e3fe5",
+              url: "http://localhost:4000/storage/testing/uploads/1740000000_photo.jpg"
+            }
+          },
+          curl: `curl "http://localhost:4000/signed-url/verify?name=uploads/1740000000_photo.jpg&bucket=testing"`,
+          javascript: `fetch('http://localhost:4000/signed-url/verify?name=uploads/1740000000_photo.jpg')\n  .then(res => res.json())\n  .then(metadata => console.log('File metadata:', metadata));`
+        },
+        {
+          path: "/signed-url/file",
+          method: "DELETE",
+          summary: "Delete Single Media File",
+          description: "Deletes a specific media file uploaded via signed URL or standard upload from MinIO storage.",
+          queryParams: [
+            { name: "name", type: "string", required: true, description: "Object name or path inside bucket to delete." },
+            { name: "bucket", type: "string", required: false, description: "Bucket name." },
+            { name: "folder", type: "string", required: false, description: "Optional folder prefix." }
+          ],
+          response: {
+            status: 200,
+            description: "Media deleted successfully.",
+            example: {
+              success: true,
+              message: "Media deleted successfully",
+              bucket: "testing",
+              name: "uploads/1740000000_photo.jpg"
+            }
+          },
+          curl: `curl -X DELETE "http://localhost:4000/signed-url/file?name=uploads/1740000000_photo.jpg&bucket=testing"`,
+          javascript: `fetch('http://localhost:4000/signed-url/file?name=uploads/1740000000_photo.jpg', {\n  method: 'DELETE'\n})\n.then(res => res.json())\n.then(data => console.log(data));`
         },
         {
           path: "/upload",
